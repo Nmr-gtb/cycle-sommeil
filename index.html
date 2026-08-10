@@ -48,14 +48,14 @@ header{position:sticky;top:0;z-index:5;margin:0 -16px;padding:14px 16px 12px;
   background:var(--chrome);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);
   display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid transparent}
 header.stuck{border-bottom-color:var(--sep)}
-header h1{margin:0;font-size:24px;font-weight:700;letter-spacing:-.025em;line-height:1.15}
+header h1{margin:0;font-size:21px;font-weight:700;letter-spacing:-.025em;line-height:1.15}
 header .sb{font-size:13px;color:var(--muted);margin-top:2px;letter-spacing:-.005em}
 .iconbtn{width:38px;height:38px;flex:none;border-radius:50%;border:none;background:var(--fill2);
   color:var(--text);display:grid;place-items:center;cursor:pointer;transition:.15s}
 .iconbtn:active{transform:scale(.92)}
 .iconbtn:focus-visible,button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 
-.sec{font-size:15px;font-weight:600;letter-spacing:-.015em;margin:26px 0 10px;display:flex;
+.sec{font-size:14px;font-weight:600;letter-spacing:-.015em;margin:26px 0 10px;display:flex;
   justify-content:space-between;align-items:baseline}
 .sec span{font-size:13px;font-weight:400;color:var(--muted)}
 .sec:first-child{margin-top:18px}
@@ -65,7 +65,7 @@ header .sb{font-size:13px;color:var(--muted);margin-top:2px;letter-spacing:-.005
 .flush{padding:0}
 .row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 18px}
 .row+.row{border-top:1px solid var(--sep)}
-.row .lb{font-size:15px;font-weight:500;letter-spacing:-.01em}
+.row .lb{font-size:14px;font-weight:500;letter-spacing:-.01em}
 .row .hint{font-size:12.5px;color:var(--muted);margin-top:2px;line-height:1.4}
 .row .val{font-size:15px;color:var(--muted);display:flex;align-items:center;gap:5px;flex:none}
 
@@ -75,33 +75,33 @@ header .sb{font-size:13px;color:var(--muted);margin-top:2px;letter-spacing:-.005
 svg.arc{width:100%;display:block;touch-action:none}
 .arc .hit{fill:transparent}
 .knob{filter:drop-shadow(0 2px 6px rgba(16,24,40,.22));cursor:grab}
-.center{position:absolute;left:0;right:0;bottom:8px;text-align:center;pointer-events:none}
-.center .big{font-size:54px;font-weight:700;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums}
-.pill{display:inline-flex;align-items:center;gap:5px;margin-top:11px;padding:6px 12px;border-radius:999px;
-  font-size:12.5px;font-weight:600;letter-spacing:-.005em}
+.center{position:absolute;left:0;right:0;bottom:4px;text-align:center;pointer-events:none}
+.center .big{font-size:45px;font-weight:700;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums}
+.pill{display:inline-flex;align-items:center;gap:5px;margin-top:9px;padding:5px 11px;border-radius:999px;
+  font-size:11.5px;font-weight:600;letter-spacing:-.005em}
 .pill.ok{background:rgba(15,169,88,.12);color:var(--green)}
 .pill.no{background:rgba(239,138,12,.13);color:var(--orange)}
 
 .times{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
 .tbox{background:var(--fill);border-radius:14px;padding:10px 8px 11px;text-align:center}
-.tbox .k{font-size:11.5px;color:var(--muted);font-weight:500;letter-spacing:.01em;display:flex;
+.tbox .k{font-size:11px;color:var(--muted);font-weight:500;letter-spacing:.01em;display:flex;
   align-items:center;justify-content:center;gap:5px}
 .tbox .l{display:flex;align-items:center;justify-content:space-between;margin-top:4px}
-.tbox .v{font-size:24px;font-weight:600;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.tbox .v{font-size:21px;font-weight:600;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
 .st{width:30px;height:30px;flex:none;border-radius:50%;border:none;background:var(--card);color:var(--text);
   font-size:16px;line-height:1;cursor:pointer;box-shadow:0 1px 2px rgba(16,24,40,.12);display:grid;place-items:center}
 .st:active{transform:scale(.9)}
 
 /* segmented */
 .seg{display:flex;gap:0;background:var(--fill);border-radius:11px;padding:3px;flex:none}
-.seg button{border:none;background:transparent;color:var(--muted);font-family:var(--f);font-size:14px;
-  font-weight:500;padding:8px 15px;border-radius:9px;cursor:pointer;transition:.16s;letter-spacing:-.01em}
+.seg button{border:none;background:transparent;color:var(--muted);font-family:var(--f);font-size:13.5px;
+  font-weight:500;padding:8px 14px;border-radius:9px;cursor:pointer;transition:.16s;letter-spacing:-.01em}
 .seg button.on{background:var(--card);color:var(--text);font-weight:600;box-shadow:0 1px 3px rgba(16,24,40,.14)}
 .seg.full{display:grid;grid-template-columns:repeat(4,1fr);margin:0 18px 16px}
 .seg.full button{padding:9px 0;text-align:center}
 
-.cta{width:100%;margin-top:20px;border:none;border-radius:15px;padding:17px;cursor:pointer;background:var(--blue);
-  color:#fff;font-family:var(--f);font-size:16px;font-weight:600;letter-spacing:-.01em}
+.cta{width:100%;margin-top:20px;border:none;border-radius:15px;padding:16px;cursor:pointer;background:var(--blue);
+  color:#fff;font-family:var(--f);font-size:15px;font-weight:600;letter-spacing:-.01em}
 .cta:active{opacity:.85}
 .cta.sec2{background:var(--fill2);color:var(--text)}
 .link{width:100%;margin-top:12px;background:none;border:none;color:var(--muted);font-family:var(--f);
@@ -114,14 +114,14 @@ svg.arc{width:100%;display:block;touch-action:none}
 /* stats */
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
 .stat{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:15px 16px}
-.stat .k{font-size:12.5px;color:var(--muted);font-weight:500;line-height:1.35;letter-spacing:-.005em}
-.stat .v{font-size:27px;font-weight:700;letter-spacing:-.035em;margin-top:9px;line-height:1;font-variant-numeric:tabular-nums}
+.stat .k{font-size:12px;color:var(--muted);font-weight:500;line-height:1.35;letter-spacing:-.005em}
+.stat .v{font-size:23px;font-weight:700;letter-spacing:-.035em;margin-top:9px;line-height:1;font-variant-numeric:tabular-nums}
 .stat .n{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.35}
 
 /* anneau */
 .ringrow{display:flex;align-items:center;gap:20px}
-.ringrow .big{font-size:38px;font-weight:700;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums}
-.ringrow .sub{font-size:13.5px;color:var(--muted);margin-top:7px;line-height:1.5}
+.ringrow .big{font-size:32px;font-weight:700;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums}
+.ringrow .sub{font-size:13px;color:var(--muted);margin-top:7px;line-height:1.5}
 
 /* graphique */
 .axis{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin:0 44px 10px 38px;
@@ -153,11 +153,11 @@ svg.arc{width:100%;display:block;touch-action:none}
 .ins{display:flex;gap:14px;align-items:flex-start}
 .tile{width:36px;height:36px;flex:none;border-radius:11px;display:grid;place-items:center}
 .ins .t{font-size:15px;font-weight:600;letter-spacing:-.015em;margin-bottom:4px}
-.ins .b{font-size:14px;line-height:1.5;color:var(--text)}
+.ins .b{font-size:13.5px;line-height:1.5;color:var(--text)}
 .ins .b em{font-style:normal;font-weight:600}
 .ins .s{font-size:13px;color:var(--muted);line-height:1.5;margin-top:5px}
 
-.item{display:flex;align-items:center;gap:12px;padding:13px 18px;font-size:14px}
+.item{display:flex;align-items:center;gap:12px;padding:13px 18px;font-size:13.5px}
 .item+.item{border-top:1px solid var(--sep)}
 .item .dt{width:58px;flex:none;color:var(--muted);font-size:13px}
 .item .c{flex:1;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
@@ -272,9 +272,9 @@ function vLog(){
           <stop offset="0" stop-color="var(--blue)"/><stop offset="1" stop-color="var(--teal)"/></linearGradient></defs>
         <path d="M32 156 A118 118 0 0 1 268 156" fill="none" stroke="var(--fill)" stroke-width="16" stroke-linecap="round"/>
         <path id="fill" d="" fill="none" stroke="url(#ga)" stroke-width="16" stroke-linecap="round"/>
-        <text x="28" y="176" fill="var(--muted)" font-size="11" font-family="Inter">18h</text>
-        <text x="144" y="30" fill="var(--muted)" font-size="11" font-family="Inter">0h</text>
-        <text x="257" y="176" fill="var(--muted)" font-size="11" font-family="Inter">12h</text>
+        <text x="28" y="176" fill="var(--muted)" font-size="10" font-family="Inter">18h</text>
+        <text x="144" y="21" fill="var(--muted)" font-size="10" font-family="Inter">0h</text>
+        <text x="257" y="176" fill="var(--muted)" font-size="10" font-family="Inter">12h</text>
         <g id="hb" data-h="bed" class="knob"><circle class="hit" r="28"/><circle r="14" fill="var(--card)"/><circle r="5" fill="var(--blue)"/></g>
         <g id="hw" data-h="wake" class="knob"><circle class="hit" r="28"/><circle r="14" fill="var(--card)"/><circle r="5" fill="var(--teal)"/></g>
       </svg>
