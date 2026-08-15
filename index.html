@@ -138,16 +138,15 @@ svg.arc{width:100%;display:block;touch-action:none}
   background:var(--card);border:2.5px solid var(--orange)}
 
 /* barres de durée */
-.chart{position:relative;height:142px;display:flex;align-items:flex-end;gap:4px;padding-right:34px}
-.cb{flex:1;min-width:0;border-radius:5px 5px 0 0;background:linear-gradient(180deg,var(--teal),var(--blue));
-  transition:height .3s ease}
-.cb.low{background:var(--orange);opacity:.8}
-.goal{position:absolute;left:0;right:34px;height:0;border-top:1.5px dashed color-mix(in srgb,var(--muted) 50%,transparent)}
-.goal b{position:absolute;right:-34px;top:-9px;font-size:11px;font-weight:500;color:var(--muted);
-  font-variant-numeric:tabular-nums}
-.clab{display:flex;gap:4px;padding-right:34px;margin-top:8px}
-.clab span{flex:1;min-width:0;text-align:center;font-size:10px;color:var(--muted)}
-.clab span.we{color:var(--orange);font-weight:600}
+.curve{width:100%;display:block;overflow:visible}
+.curve .grid-l{stroke:var(--sep);stroke-width:1}
+.curve .goal-l{stroke:color-mix(in srgb,var(--muted) 55%,transparent);stroke-width:1.5;stroke-dasharray:4 4}
+.curve .line{fill:none;stroke:url(#gc);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.curve .pt{fill:var(--card);stroke:var(--blue);stroke-width:2.2}
+.curve .pt.low{stroke:var(--orange)}
+.curve .yl{fill:var(--muted);font-size:9.5px;font-family:var(--f)}
+.curve .xl{fill:var(--muted);font-size:9.5px;font-family:var(--f);text-anchor:middle}
+.curve .xl.we{fill:var(--orange);font-weight:600}
 
 /* insight */
 .ins{display:flex;gap:14px;align-items:flex-start}
@@ -164,6 +163,15 @@ svg.arc{width:100%;display:block;touch-action:none}
 .item .x{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;padding:0 2px;line-height:1}
 .empty{text-align:center;color:var(--muted);font-size:14px;line-height:1.6;padding:26px 14px}
 .note{font-size:12.5px;color:var(--muted);line-height:1.6;margin-top:12px;padding:0 4px}
+.sync{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);
+  padding:9px 12px;background:var(--fill);border-radius:12px;margin-top:12px}
+.sync .dotk{width:7px;height:7px;border-radius:50%;flex:none;background:var(--green)}
+.sync .dotk.off{background:var(--muted)} .sync .dotk.err{background:var(--orange)}
+.keybox{font-family:ui-monospace,Menlo,monospace;font-size:13px;letter-spacing:.02em;word-break:break-all;
+  background:var(--fill);border-radius:12px;padding:12px 14px;margin-top:10px;line-height:1.6;color:var(--text)}
+.kf{width:100%;background:var(--fill);border:none;border-radius:12px;padding:13px 14px;color:var(--text);
+  font-family:ui-monospace,Menlo,monospace;font-size:13px;margin-top:10px}
+.kf:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 
 input[type=range]{-webkit-appearance:none;width:100%;height:4px;border-radius:2px;background:var(--fill2);margin:18px 0 2px}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;border-radius:50%;
@@ -213,7 +221,7 @@ const I={
   down:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7l6 6 4-4 6 6"/><path d="M20 15v-4h-4"/></svg>'
 };
 
-let S={nights:[],target:480,theme:'light',tab:'log',ready:false,ask:false,confirm:false};
+let S={nights:[],target:480,theme:'light',tab:'log',ready:false,ask:false,confirm:false,key:null,sync:'off',syncAt:0,showKey:false,keyMsg:''};
 let d=null;
 
 const pad=n=>String(n).padStart(2,'0');
@@ -238,6 +246,90 @@ const tint=(c,a)=>'style="background:color-mix(in srgb,'+c+' 14%,transparent);co
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');
   clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),1800)}
 
+const SB={
+  url:'https://hnvforrduqynytrzkwnu.supabase.co',
+  key:'sb_publishable_yZj7yvVnytRLy3rN4xpkWw_ns15xtWE'
+};
+const KKEY='cycle-sync-key';
+
+function newKey(){
+  const a=new Uint8Array(24);crypto.getRandomValues(a);
+  return [...a].map(x=>x.toString(36).padStart(2,'0')).join('').slice(0,32);
+}
+function getKey(){
+  let k=null;
+  try{k=localStorage.getItem(KKEY)}catch(e){}
+  if(!k){k=newKey();try{localStorage.setItem(KKEY,k)}catch(e){}}
+  return k;
+}
+function setKey(k){
+  try{localStorage.setItem(KKEY,k)}catch(e){}
+  S.key=k;
+}
+async function sbFetch(path,opts){
+  const o=opts||{};
+  const r=await fetch(SB.url+'/rest/v1/'+path,{
+    method:o.method||'GET',
+    headers:Object.assign({
+      'apikey':SB.key,
+      'Authorization':'Bearer '+SB.key,
+      'x-sync-key':S.key,
+      'Content-Type':'application/json'
+    },o.headers||{}),
+    body:o.body?JSON.stringify(o.body):undefined
+  });
+  if(!r.ok)throw new Error(r.status+' '+await r.text());
+  return r.status===204?null:r.json();
+}
+const toRow=n=>({sync_key:S.key,night_date:n.date,bed:n.bed,wake:n.wake,
+  wake_type:n.wakeType||'alarme',awak:n.awak||0,updated_at:new Date().toISOString()});
+const fromRow=r=>({id:'s'+r.night_date,date:r.night_date,bed:r.bed.slice(0,5),wake:r.wake.slice(0,5),
+  wakeType:r.wake_type,awak:r.awak});
+
+async function push(){
+  if(!navigator.onLine)return;
+  S.sync='busy';paintSync();
+  try{
+    if(S.nights.length){
+      await sbFetch('cycle_nights?on_conflict=sync_key,night_date',
+        {method:'POST',body:S.nights.map(toRow),
+         headers:{'Prefer':'resolution=merge-duplicates'}});
+    }
+    await sbFetch('cycle_prefs?on_conflict=sync_key',
+      {method:'POST',body:[{sync_key:S.key,target:S.target,theme:S.theme,updated_at:new Date().toISOString()}],
+       headers:{'Prefer':'resolution=merge-duplicates'}});
+    S.sync='ok';S.syncAt=Date.now();
+  }catch(e){S.sync='err';console.warn('sync',e)}
+  paintSync();
+}
+async function pull(){
+  if(!navigator.onLine){S.sync='off';return paintSync()}
+  S.sync='busy';paintSync();
+  try{
+    const rows=await sbFetch('cycle_nights?select=*&order=night_date.desc');
+    const local=new Map(S.nights.map(n=>[n.date,n]));
+    rows.forEach(r=>{if(!local.has(r.night_date))local.set(r.night_date,fromRow(r))});
+    S.nights=[...local.values()];
+    const p=await sbFetch('cycle_prefs?select=*&limit=1');
+    if(p&&p.length){S.target=p[0].target;}
+    save();S.sync='ok';S.syncAt=Date.now();
+  }catch(e){S.sync='err';console.warn('sync',e)}
+  paintSync();
+}
+async function syncNow(){await pull();await push();render()}
+
+function paintSync(){
+  document.querySelectorAll('[data-sync]').forEach(el=>{
+    const st=S.sync, cls=st==='ok'?'':st==='err'?'err':'off';
+    el.innerHTML='<span class="dotk '+cls+'"></span>'+(
+      st==='busy'?'Synchronisation en cours…':
+      st==='ok'?'Synchronisé'+(S.syncAt?' à '+new Date(S.syncAt).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''):
+      st==='err'?'Hors ligne, tes nuits restent sur cet appareil':
+      'Pas encore synchronisé');
+  });
+}
+addEventListener('online',()=>syncNow());
+
 function setMeta(){const m=document.querySelector('meta[name="theme-color"]');
   if(m)m.setAttribute('content',S.theme==='light'?'#F1F4F9':'#08090C')}
 function load(){
@@ -245,7 +337,9 @@ function load(){
     if(raw){const v=JSON.parse(raw);S.nights=v.nights||[];S.target=v.target||480;S.theme=v.theme||'light'}
   }catch(e){}
   document.documentElement.dataset.theme=S.theme;setMeta();
+  S.key=getKey();
   S.ready=true;render(1);
+  syncNow();
 }
 function save(){
   try{localStorage.setItem(KEY,JSON.stringify({nights:S.nights,target:S.target,theme:S.theme}))}
@@ -336,6 +430,50 @@ document.addEventListener('pointermove',e=>{
 document.addEventListener('pointerup',()=>drag=null);
 document.addEventListener('pointercancel',()=>drag=null);
 
+/* courbe de duree, spline lissee */
+function buildCurve(ns){
+  const W=320,H=170,L=34,R=8,T=12,B=26;
+  if(!ns.length)return '<div class="empty">Aucune nuit pour le moment.</div>';
+  if(ns.length===1)return '<div class="empty">Une seule nuit enregistrée.<br>La courbe apparaîtra dès la deuxième.</div>';
+  const vals=ns.map(dur);
+  let lo=Math.min(S.target,...vals)-40, hi=Math.max(S.target,...vals)+40;
+  lo=Math.max(0,Math.floor(lo/60)*60); hi=Math.ceil(hi/60)*60;
+  if(hi-lo<120)hi=lo+120;
+  const X=i=>L+(W-L-R)*(ns.length===1?.5:i/(ns.length-1));
+  const Y=v=>T+(H-T-B)*(1-(v-lo)/(hi-lo));
+  const pts=vals.map((v,i)=>[X(i),Y(v)]);
+  let d='M'+pts[0][0].toFixed(1)+' '+pts[0][1].toFixed(1);
+  for(let i=0;i<pts.length-1;i++){
+    const p0=pts[i-1]||pts[i], p1=pts[i], p2=pts[i+1], p3=pts[i+2]||pts[i+1];
+    const c1x=p1[0]+(p2[0]-p0[0])/6, c1y=p1[1]+(p2[1]-p0[1])/6;
+    const c2x=p2[0]-(p3[0]-p1[0])/6, c2y=p2[1]-(p3[1]-p1[1])/6;
+    d+=' C'+c1x.toFixed(1)+' '+c1y.toFixed(1)+','+c2x.toFixed(1)+' '+c2y.toFixed(1)+','+p2[0].toFixed(1)+' '+p2[1].toFixed(1);
+  }
+  const area=d+' L'+pts[pts.length-1][0].toFixed(1)+' '+(H-B)+' L'+pts[0][0].toFixed(1)+' '+(H-B)+' Z';
+  let g='';
+  for(let v=lo;v<=hi;v+=60){
+    const y=Y(v);
+    g+='<line class="grid-l" x1="'+L+'" y1="'+y.toFixed(1)+'" x2="'+(W-R)+'" y2="'+y.toFixed(1)+'"/>'
+     +'<text class="yl" x="'+(L-7)+'" y="'+(y+3.3).toFixed(1)+'" text-anchor="end">'+Math.round(v/60)+'h</text>';
+  }
+  const yg=Y(S.target);
+  const goal='<line class="goal-l" x1="'+L+'" y1="'+yg.toFixed(1)+'" x2="'+(W-R)+'" y2="'+yg.toFixed(1)+'"/>';
+  const dots=pts.map((p,i)=>'<circle class="pt'+(vals[i]<S.target?' low':'')+'" cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="3.6"/>').join('');
+  const step=ns.length>9?2:1;
+  const xl=ns.map((n,i)=>{
+    if(i%step)return '';
+    const g=new Date(n.date+'T12:00').getDay();
+    return '<text class="xl'+([0,6].includes(g)?' we':'')+'" x="'+X(i).toFixed(1)+'" y="'+(H-8)+'">'+DAY[g][0].toUpperCase()+'</text>';
+  }).join('');
+  return '<svg class="curve" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" style="height:170px">'
+    +'<defs><linearGradient id="gc" x1="0" y1="0" x2="1" y2="0">'
+    +'<stop offset="0" stop-color="var(--blue)"/><stop offset="1" stop-color="var(--teal)"/></linearGradient>'
+    +'<linearGradient id="ga2" x1="0" y1="0" x2="0" y2="1">'
+    +'<stop offset="0" stop-color="var(--blue)" stop-opacity=".18"/>'
+    +'<stop offset="1" stop-color="var(--blue)" stop-opacity="0"/></linearGradient></defs>'
+    +g+goal+'<path d="'+area+'" fill="url(#ga2)"/><path class="line" d="'+d+'"/>'+dots+xl+'</svg>';
+}
+
 /* ---------- écran 2 ---------- */
 function vNights(){
   const ns=sorted();
@@ -345,13 +483,7 @@ function vNights(){
   const p=Math.min(1,moy/S.target),C=2*Math.PI*50;
   const beds=w14.map(n=>ax(n.bed)),wakes=w14.map(n=>ax(n.wake));
   const chrono=w14.slice().reverse();
-  const mx=Math.max(S.target,...chrono.map(dur))*1.1;
-  const bars=chrono.map(n=>{
-    const t=dur(n);
-    return '<div class="cb'+(t<S.target?' low':'')+'" style="height:'+(t/mx*100).toFixed(1)+'%"></div>';
-  }).join('');
-  const labs=chrono.map(n=>{const g=new Date(n.date+'T12:00').getDay();
-    return '<span class="'+([0,6].includes(g)?'we':'')+'">'+DAY[g][0].toUpperCase()+'</span>'}).join('');
+  const curve=buildCurve(chrono);
   const rows=w14.slice().reverse().map(n=>{
     const a=Math.min(SPAN,ax(n.bed)),b=Math.min(SPAN,ax(n.wake));
     return '<div class="brow"><span class="d">'+lab(n.date)+'</span><div class="track">'+
@@ -380,23 +512,17 @@ function vNights(){
     <div class="stat"><div class="k">Dette de sommeil</div>
       <div class="v" style="color:${dette<0?'var(--orange)':'var(--green)'}">${sh(dette)}</div>
       <div class="n">cumul sur 7 nuits</div></div>
-    <div class="stat"><div class="k">Régularité du coucher</div><div class="v">±${Math.round(sd(beds))} min</div>
-      <div class="n">autour de ${unax(avg(beds))}</div></div>
+    <div class="stat"><div class="k">Coucher</div><div class="v">${unax(avg(beds))}</div>
+      <div class="n">en moyenne, à ${Math.round(sd(beds))} min près</div></div>
     <div class="stat"><div class="k">Réveil moyen</div><div class="v">${unax(avg(wakes))}</div>
-      <div class="n">±${Math.round(sd(wakes))} min d'écart</div></div>
+      <div class="n">en moyenne, à ${Math.round(sd(wakes))} min près</div></div>
     <div class="stat"><div class="k">Sous l'objectif</div><div class="v">${w14.filter(n=>dur(n)<S.target).length}<span style="font-size:17px;color:var(--muted)">/${w14.length}</span></div>
       <div class="n">nuits trop courtes</div></div>
   </div>
 
   <div class="sec">Durée par nuit<span>${chrono.length} dernières</span></div>
-  <div class="card" style="padding:18px 16px 14px">
-    <div class="chart">
-      <div class="goal" style="bottom:${(S.target/mx*100).toFixed(1)}%"><b>${hm(S.target)}</b></div>
-      ${bars}
-    </div>
-    <div class="clab">${labs}</div>
-  </div>
-  <div class="note">Les barres orange sont les nuits passées sous ton objectif. La ligne pointillée, c'est ${hm(S.target)}.</div>
+  <div class="card" style="padding:18px 14px 12px">${curve}</div>
+  <div class="note">${chrono.length<2?'La courbe apparaîtra dès deux nuits enregistrées.':'La ligne pointillée est ton objectif. Les points orange sont les nuits passées en dessous. Une courbe plate, c\'est un sommeil régulier.'}</div>
 
   <div class="sec">Tes nuits sur l'horloge</div>
   <div class="card" style="padding:18px 16px 14px">
@@ -418,9 +544,9 @@ function vAn(){
   if(n>=4){
     const v=sd(ns.slice(0,14).map(x=>ax(x.bed)));
     c.push([I.clock,'var(--blue)','Régularité',
-      v<25?'Ton heure de coucher est <em>très stable</em>, à ±'+Math.round(v)+' minutes près.'
-      :v<50?'Ton coucher varie de <em>±'+Math.round(v)+' minutes</em>. Correct, sans plus.'
-      :'Ton coucher varie de <em>±'+Math.round(v)+' minutes</em>. C\'est beaucoup.',
+      v<25?'Ton heure de coucher est <em>très stable</em> : elle bouge de '+Math.round(v)+' minutes seulement.'
+      :v<50?'Ton heure de coucher bouge de <em>'+Math.round(v)+' minutes</em> par nuit. Correct, sans plus.'
+      :'Ton heure de coucher bouge de <em>'+Math.round(v)+' minutes</em> par nuit. C\'est beaucoup.',
       'La régularité pèse souvent plus lourd que la durée sur la qualité du réveil.']);
   }
   const nat=ns.filter(x=>x.wakeType==='naturel');
@@ -469,6 +595,22 @@ function vAn(){
       <div class="hint">La recommandation pour 18 à 25 ans va de 7h à 9h</div></div></div>
     <input type="range" min="360" max="600" step="15" value="${S.target}" id="tg">
   </div>
+  <div class="sec">Sauvegarde</div>
+  <div class="card">
+    <div class="row" style="padding:0">
+      <div><div class="lb">Synchronisation</div>
+      <div class="hint">Tes nuits sont sauvegardées en ligne et sur cet appareil</div></div></div>
+    <div class="sync" data-sync></div>
+    ${S.showKey?`
+      <div class="hint" style="margin-top:14px">Ta clé de synchronisation. Saisis-la sur un autre appareil pour y retrouver tes nuits. Garde-la pour toi, elle donne accès à tes données.</div>
+      <div class="keybox">${S.key}</div>
+      <button class="link" id="copyKey" style="margin-top:4px">Copier la clé</button>
+      <div class="hint" style="margin-top:10px">Ou colle ici la clé d'un appareil existant :</div>
+      <input class="kf" id="kin" placeholder="clé de synchronisation" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <button class="cta" id="useKey" style="margin-top:10px">Utiliser cette clé</button>
+      ${S.keyMsg?'<div class="hint" style="margin-top:10px;color:var(--orange)">'+S.keyMsg+'</div>':''}`
+    :'<button class="link" id="showKey">Voir ma clé de synchronisation</button>'}
+  </div>
   <div class="note">Cette app décrit tes nuits, elle ne pose aucun diagnostic. Si la fatigue s'installe sur plusieurs semaines, un médecin reste le bon interlocuteur.</div>
   <button class="link danger" id="reset">${S.confirm?'Confirmer, tout effacer':'Effacer toutes mes données'}</button>`;
 }
@@ -488,6 +630,7 @@ function render(scroll){
     :S.nights.length+' nuit'+(S.nights.length>1?'s':'')+' suivie'+(S.nights.length>1?'s':'');
   v.innerHTML=S.tab==='log'?vLog():S.tab==='nights'?vNights():vAn();
   if(S.tab==='log')paint();
+  paintSync();
   if(scroll)window.scrollTo(0,0);
 }
 addEventListener('scroll',()=>document.getElementById('hd').classList.toggle('stuck',scrollY>6));
@@ -502,25 +645,46 @@ document.addEventListener('click',async e=>{
     d[f]=unax(Math.min(SPAN,Math.max(0,m)));return paint()}
   if(b.dataset.set){d[b.dataset.set]=b.dataset.set==='awak'?Number(b.dataset.v):b.dataset.v;return render()}
   if(b.id==='openAwak'){S.ask=true;return render()}
+  if(b.id==='showKey'){S.showKey=true;S.keyMsg='';return render()}
+  if(b.id==='copyKey'){navigator.clipboard.writeText(S.key).then(()=>toast('Clé copiée')).catch(()=>toast('Copie impossible'));return}
+  if(b.id==='useKey'){
+    const v=(document.getElementById('kin').value||'').trim();
+    if(v.length<24){S.keyMsg='Cette clé est trop courte, vérifie que tu l\'as copiée en entier.';return render()}
+    if(v===S.key){S.keyMsg='C\'est déjà la clé de cet appareil.';return render()}
+    const garde=S.nights.slice();
+    setKey(v);S.keyMsg='';
+    await pull();
+    const parDate=new Map(S.nights.map(n=>[n.date,n]));
+    garde.forEach(n=>{if(!parDate.has(n.date))parDate.set(n.date,n)});
+    S.nights=[...parDate.values()];
+    save();await push();
+    toast('Clé changée, '+S.nights.length+' nuits');return render()}
   if(b.id==='go'){const up=saved();
     S.nights=S.nights.filter(n=>n.date!==d.date).concat({...d});
-    await save();toast(up?'Nuit mise à jour':'Nuit enregistrée');
+    await save();push();toast(up?'Nuit mise à jour':'Nuit enregistrée');
     S.ask=false;d=null;S.tab='nights';return render(1)}
-  if(b.id==='rm'){S.nights=S.nights.filter(n=>n.date!==d.date);await save();d=blank(d.date);toast('Supprimée');return render()}
-  if(b.dataset.del){S.nights=S.nights.filter(n=>n.id!==b.dataset.del);await save();d=null;toast('Supprimée');return render()}
+  if(b.id==='rm'){const dt=d.date;S.nights=S.nights.filter(n=>n.date!==dt);await save();
+    sbFetch('cycle_nights?night_date=eq.'+dt,{method:'DELETE'}).catch(()=>{});
+    d=blank(dt);toast('Supprimée');return render()}
+  if(b.dataset.del){const g=S.nights.find(n=>n.id===b.dataset.del);
+    S.nights=S.nights.filter(n=>n.id!==b.dataset.del);await save();
+    if(g)sbFetch('cycle_nights?night_date=eq.'+g.date,{method:'DELETE'}).catch(()=>{});
+    d=null;toast('Supprimée');return render()}
   if(b.id==='csv'){const rows=[['date','coucher','reveil','duree_min','reveils_nuit','type_reveil']]
       .concat(sorted().map(n=>[n.date,n.bed,n.wake,dur(n),n.awak||0,n.wakeType]));
     const a=document.createElement('a');
     a.href=URL.createObjectURL(new Blob([rows.map(r=>r.join(';')).join('\n')],{type:'text/csv'}));
     a.download='sommeil.csv';a.click();return toast('CSV exporté')}
   if(b.id==='reset'){if(!S.confirm){S.confirm=true;return render()}
-    S.nights=[];S.confirm=false;d=null;await save();toast('Données effacées');return render()}
+    S.nights=[];S.confirm=false;d=null;await save();
+    sbFetch('cycle_nights?sync_key=eq.'+S.key,{method:'DELETE'}).catch(()=>{});
+    toast('Données effacées');return render()}
 });
 document.addEventListener('input',e=>{
   if(e.target.id==='tg'){S.target=Number(e.target.value);document.getElementById('tgv').textContent=hm(S.target)+' par nuit'}
   if(e.target.id==='dpick'&&e.target.value){S.ask=false;d=blank(e.target.value);render()}
 });
-document.addEventListener('change',e=>{if(e.target.id==='tg')save()});
+document.addEventListener('change',e=>{if(e.target.id==='tg'){save();push()}});
 load();
 </script>
 
