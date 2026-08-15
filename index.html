@@ -221,7 +221,7 @@ const I={
   down:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7l6 6 4-4 6 6"/><path d="M20 15v-4h-4"/></svg>'
 };
 
-let S={nights:[],target:480,theme:'light',tab:'log',ready:false,ask:false,confirm:false,key:null,sync:'off',syncAt:0,showKey:false,keyMsg:''};
+let S={nights:[],target:480,theme:'light',tab:'log',ready:false,ask:false,confirm:false,key:null,sync:'off',syncAt:0,showKey:false,keyMsg:'',touched:false};
 let d=null;
 
 const pad=n=>String(n).padStart(2,'0');
@@ -316,7 +316,7 @@ async function pull(){
   }catch(e){S.sync='err';console.warn('sync',e)}
   paintSync();
 }
-async function syncNow(){await pull();await push();render()}
+async function syncNow(){await pull();await push();if(!S.touched)d=null;render()}
 
 function paintSync(){
   document.querySelectorAll('[data-sync]').forEach(el=>{
@@ -425,7 +425,7 @@ document.addEventListener('pointermove',e=>{
   ang=Math.min(180,Math.max(0,ang));
   let m=Math.round((180-ang)/180*SPAN/5)*5;
   m=drag==='bed'?Math.min(m,ax(d.wake)-30):Math.max(m,ax(d.bed)+30);
-  d[drag]=unax(Math.min(SPAN,Math.max(0,m)));paint();
+  S.touched=true;d[drag]=unax(Math.min(SPAN,Math.max(0,m)));paint();
 });
 document.addEventListener('pointerup',()=>drag=null);
 document.addEventListener('pointercancel',()=>drag=null);
@@ -640,10 +640,10 @@ document.addEventListener('click',async e=>{
   if(b.id==='theme'){S.theme=S.theme==='light'?'dark':'light';document.documentElement.dataset.theme=S.theme;setMeta();
     b.innerHTML=S.theme==='light'?I.moon:I.sun;return save()}
   if(b.dataset.tab){S.tab=b.dataset.tab;S.confirm=false;return render(1)}
-  if(b.dataset.step){const[f,v]=b.dataset.step.split(':');let m=ax(d[f])+Number(v);
+  if(b.dataset.step){S.touched=true;const[f,v]=b.dataset.step.split(':');let m=ax(d[f])+Number(v);
     m=f==='bed'?Math.min(m,ax(d.wake)-30):Math.max(m,ax(d.bed)+30);
     d[f]=unax(Math.min(SPAN,Math.max(0,m)));return paint()}
-  if(b.dataset.set){d[b.dataset.set]=b.dataset.set==='awak'?Number(b.dataset.v):b.dataset.v;return render()}
+  if(b.dataset.set){S.touched=true;d[b.dataset.set]=b.dataset.set==='awak'?Number(b.dataset.v):b.dataset.v;return render()}
   if(b.id==='openAwak'){S.ask=true;return render()}
   if(b.id==='showKey'){S.showKey=true;S.keyMsg='';return render()}
   if(b.id==='copyKey'){navigator.clipboard.writeText(S.key).then(()=>toast('Clé copiée')).catch(()=>toast('Copie impossible'));return}
@@ -662,7 +662,7 @@ document.addEventListener('click',async e=>{
   if(b.id==='go'){const up=saved();
     S.nights=S.nights.filter(n=>n.date!==d.date).concat({...d});
     await save();push();toast(up?'Nuit mise à jour':'Nuit enregistrée');
-    S.ask=false;d=null;S.tab='nights';return render(1)}
+    S.ask=false;S.touched=false;d=null;S.tab='nights';return render(1)}
   if(b.id==='rm'){const dt=d.date;S.nights=S.nights.filter(n=>n.date!==dt);await save();
     sbFetch('cycle_nights?night_date=eq.'+dt,{method:'DELETE'}).catch(()=>{});
     d=blank(dt);toast('Supprimée');return render()}
@@ -682,7 +682,7 @@ document.addEventListener('click',async e=>{
 });
 document.addEventListener('input',e=>{
   if(e.target.id==='tg'){S.target=Number(e.target.value);document.getElementById('tgv').textContent=hm(S.target)+' par nuit'}
-  if(e.target.id==='dpick'&&e.target.value){S.ask=false;d=blank(e.target.value);render()}
+  if(e.target.id==='dpick'&&e.target.value){S.ask=false;S.touched=false;d=blank(e.target.value);render()}
 });
 document.addEventListener('change',e=>{if(e.target.id==='tg'){save();push()}});
 load();
