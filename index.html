@@ -282,9 +282,9 @@ async function sbFetch(path,opts){
   return r.status===204?null:r.json();
 }
 const toRow=n=>({sync_key:S.key,night_date:n.date,bed:n.bed,wake:n.wake,
-  wake_type:n.wakeType||'alarme',awak:n.awak||0,updated_at:new Date().toISOString()});
+  wake_type:n.wakeType||'alarme',awak:n.awak||0,updated_at:n.up||new Date().toISOString()});
 const fromRow=r=>({id:'s'+r.night_date,date:r.night_date,bed:r.bed.slice(0,5),wake:r.wake.slice(0,5),
-  wakeType:r.wake_type,awak:r.awak});
+  wakeType:r.wake_type,awak:r.awak,up:r.updated_at});
 
 async function push(){
   if(!navigator.onLine)return;
@@ -308,7 +308,11 @@ async function pull(){
   try{
     const rows=await sbFetch('cycle_nights?select=*&order=night_date.desc');
     const local=new Map(S.nights.map(n=>[n.date,n]));
-    rows.forEach(r=>{if(!local.has(r.night_date))local.set(r.night_date,fromRow(r))});
+    rows.forEach(r=>{
+      const l=local.get(r.night_date);
+      // sans horodatage local, la version serveur fait foi
+      if(!l||!l.up||(r.updated_at||'')>l.up)local.set(r.night_date,fromRow(r));
+    });
     S.nights=[...local.values()];
     const p=await sbFetch('cycle_prefs?select=*&limit=1');
     if(p&&p.length){S.target=p[0].target;}
@@ -550,13 +554,22 @@ function vAn(){
       'La régularité pèse souvent plus lourd que la durée sur la qualité du réveil.']);
   }
   const nat=ns.filter(x=>x.wakeType==='naturel');
-  if(nat.length>=3){
-    const b=avg(nat.map(dur));
-    c.push([I.target,'var(--teal)','Ton besoin réel',
-      'Sans alarme, tu dors <em>'+hm(b)+'</em> en moyenne.',
+  if(nat.length>=5){
+    // Une nuit sans alarme n'atteint ton besoin que si le coucher a laisse le temps.
+    // On ne garde donc que le tiers le plus long : les autres mesurent l'heure du coucher,
+    // pas la quantite de sommeil dont le corps a besoin.
+    const tri=nat.map(dur).sort((a,b)=>b-a);
+    const b=avg(tri.slice(0,Math.max(2,Math.ceil(tri.length/3))));
+    c.push([I.target,'var(--teal)','Ton besoin de sommeil',
+      'Sur tes nuits les plus longues sans alarme, tu dors <em>'+hm(b)+'</em>.',
       b>S.target+20?'Ton objectif de '+hm(S.target)+' est peut-être sous-évalué.'
       :b<S.target-20?'Ton objectif de '+hm(S.target)+' semble un peu haut pour toi.'
       :'Ton objectif de '+hm(S.target)+' colle à ton besoin.']);
+    const courtes=nat.filter(x=>dur(x)<S.target-60).length;
+    if(courtes>=Math.ceil(nat.length/2))
+      c.push([I.clock,'var(--orange)','Ton réveil est verrouillé',
+        '<em>'+courtes+' nuits sur '+nat.length+'</em> où tu te réveilles sans alarme durent moins de '+hm(S.target-60)+'.',
+        'Ton corps te réveille à heure fixe, même quand tu manques de sommeil. Tu ne peux donc pas récupérer le matin : tout se joue à l\'heure du coucher.']);
   }
   const mid=x=>{const a=ax(x.bed);return a+(ax(x.wake)-a)/2};
   const we=ns.filter(x=>[0,6].includes(new Date(x.date+'T12:00').getDay()));
@@ -660,7 +673,7 @@ document.addEventListener('click',async e=>{
     save();await push();
     toast('Clé changée, '+S.nights.length+' nuits');return render()}
   if(b.id==='go'){const up=saved();
-    S.nights=S.nights.filter(n=>n.date!==d.date).concat({...d});
+    S.nights=S.nights.filter(n=>n.date!==d.date).concat({...d,up:new Date().toISOString()});
     await save();push();toast(up?'Nuit mise à jour':'Nuit enregistrée');
     S.ask=false;S.touched=false;d=null;S.tab='nights';return render(1)}
   if(b.id==='rm'){const dt=d.date;S.nights=S.nights.filter(n=>n.date!==dt);await save();
