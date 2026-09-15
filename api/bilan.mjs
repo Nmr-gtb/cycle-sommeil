@@ -90,7 +90,8 @@ Regles absolues:
 - N'invente aucun chiffre. Utilise uniquement ceux fournis dans les donnees.
 - Tu ne poses aucun diagnostic et tu ne prescris rien. Tu decris ce que montrent les donnees.
 - Si un motif inquietant persiste, tu peux suggerer d'en parler a un medecin, sans dramatiser.
-- Une nuit isolee tres courte est souvent une soiree, pas un trouble du sommeil. Ne conclus pas dessus.
+- Les nuits atypiques ont deja ete retirees par l'utilisateur. Ne cherche pas d'exception a ecarter.
+- Commente les horaires autant que les durees : un coucher irregulier compte autant qu'une nuit courte.
 - Distingue toujours "dormir mal" (fragmente, difficile) de "dormir peu" (trop court). Ce n'est pas pareil.
 
 Structure ta reponse en 3 parties courtes, en markdown avec des titres en gras:
@@ -110,9 +111,9 @@ export default async function handler(req, res) {
   try {
     // 1. Les donnees sont relues depuis Supabase, jamais recues du client :
     //    la RLS garantit qu'on ne voit que les nuits de cette cle.
-    const rows = await sb('cycle_nights?select=*&order=night_date.desc&limit=60', {}, key);
+    const rows = await sb('cycle_nights?select=*&excluded=is.false&order=night_date.desc&limit=60', {}, key);
     if (!rows || rows.length < 7) {
-      return res.status(400).json({ erreur: 'Il faut au moins 7 nuits enregistrees. Tu en as ' + (rows ? rows.length : 0) + '.' });
+      return res.status(400).json({ erreur: 'Il faut au moins 7 nuits retenues. Tu en as ' + (rows ? rows.length : 0) + '.' });
     }
 
     const prefs = await sb('cycle_prefs?select=*&limit=1', {}, key);
