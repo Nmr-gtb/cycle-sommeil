@@ -172,6 +172,16 @@ svg.arc{width:100%;display:block;touch-action:none}
 .kf{width:100%;background:var(--fill);border:none;border-radius:12px;padding:13px 14px;color:var(--text);
   font-family:ui-monospace,Menlo,monospace;font-size:13px;margin-top:10px}
 .kf:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.bilan{font-size:14px;line-height:1.65;color:var(--text)}
+.bilan p{margin:0 0 12px}
+.bilan p:last-child{margin-bottom:0}
+.bilan strong{font-weight:600}
+.bilan .h{font-weight:600;font-size:14.5px;letter-spacing:-.01em;margin:16px 0 6px;display:block}
+.bilan .h:first-child{margin-top:0}
+.stamp{font-size:12px;color:var(--muted);margin-top:14px}
+.spin{width:15px;height:15px;border-radius:50%;border:2px solid var(--fill2);
+  border-top-color:var(--blue);animation:sp .7s linear infinite;display:inline-block;vertical-align:-3px;margin-right:8px}
+@keyframes sp{to{transform:rotate(360deg)}}
 
 input[type=range]{-webkit-appearance:none;width:100%;height:4px;border-radius:2px;background:var(--fill2);margin:18px 0 2px}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;border-radius:50%;
@@ -221,7 +231,7 @@ const I={
   down:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7l6 6 4-4 6 6"/><path d="M20 15v-4h-4"/></svg>'
 };
 
-let S={nights:[],target:480,theme:'light',tab:'log',ready:false,ask:false,confirm:false,key:null,sync:'off',syncAt:0,showKey:false,keyMsg:'',touched:false};
+let S={nights:[],target:480,theme:'light',tab:'log',ready:false,ask:false,confirm:false,key:null,sync:'off',syncAt:0,showKey:false,keyMsg:'',touched:false,bilan:null,bilanAt:null,bilanEtat:'',bilanErr:''};
 let d=null;
 
 const pad=n=>String(n).padStart(2,'0');
@@ -315,10 +325,34 @@ async function pull(){
     });
     S.nights=[...local.values()];
     const p=await sbFetch('cycle_prefs?select=*&limit=1');
-    if(p&&p.length){S.target=p[0].target;}
+    if(p&&p.length){S.target=p[0].target;if(p[0].bilan){S.bilan=p[0].bilan;S.bilanAt=p[0].bilan_at}}
     save();S.sync='ok';S.syncAt=Date.now();
   }catch(e){S.sync='err';console.warn('sync',e)}
   paintSync();
+}
+// Rendu markdown minimal : titres en gras et paragraphes, rien de plus.
+function miniMd(t){
+  const esc=x=>x.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return esc(t).split(/\n{2,}/).map(bloc=>{
+    const l=bloc.trim();
+    if(!l)return '';
+    const titre=l.match(/^(?:#{1,4}\s*)?\*\*(.+?)\*\*:?\s*$/);
+    if(titre)return '<span class="h">'+titre[1]+'</span>';
+    if(/^#{1,4}\s/.test(l))return '<span class="h">'+l.replace(/^#{1,4}\s*/,'')+'</span>';
+    return '<p>'+l.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>')+'</p>';
+  }).join('');
+}
+async function genererBilan(force){
+  S.bilanEtat='busy';S.bilanErr='';render();
+  try{
+    const r=await fetch('/api/bilan',{method:'POST',
+      headers:{'Content-Type':'application/json','x-sync-key':S.key},
+      body:JSON.stringify({force:!!force})});
+    const j=await r.json();
+    if(!r.ok)throw new Error(j.erreur||'erreur '+r.status);
+    S.bilan=j.bilan;S.bilanAt=j.genere_le;S.bilanEtat='';
+  }catch(e){S.bilanEtat='';S.bilanErr=e.message}
+  render();
 }
 async function syncNow(){await pull();await push();if(!S.touched)d=null;render()}
 
@@ -601,6 +635,21 @@ function vAn(){
   return `
   <div class="sec">Ce que disent tes données</div>
   ${body}
+  <div class="sec">Bilan personnalisé</div>
+  <div class="card">
+    ${S.bilanEtat==='busy'
+      ? '<div class="hint"><span class="spin"></span>Lecture de tes nuits en cours…</div>'
+      : S.bilan
+        ? '<div class="bilan">'+miniMd(S.bilan)+'</div>'
+          +'<div class="stamp">Rédigé le '+new Date(S.bilanAt).toLocaleDateString('fr-FR',{day:'numeric',month:'long'})
+          +' à '+new Date(S.bilanAt).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+'</div>'
+          +'<button class="link" id="regen">Refaire le bilan</button>'
+        : '<div class="hint">Un bilan écrit à partir de tes nuits : ce qui ressort, pourquoi, et une action pour la semaine.</div>'
+          +'<button class="cta" id="genBilan">Générer mon bilan</button>'}
+    ${S.bilanErr?'<div class="hint" style="margin-top:12px;color:var(--orange)">'+S.bilanErr+'</div>':''}
+  </div>
+  <div class="note">Ce bilan est rédigé automatiquement à partir de tes données. Il décrit, il ne diagnostique pas.</div>
+
   <div class="sec">Ton objectif</div>
   <div class="card">
     <div class="row" style="padding:0">
@@ -658,6 +707,8 @@ document.addEventListener('click',async e=>{
     d[f]=unax(Math.min(SPAN,Math.max(0,m)));return paint()}
   if(b.dataset.set){S.touched=true;d[b.dataset.set]=b.dataset.set==='awak'?Number(b.dataset.v):b.dataset.v;return render()}
   if(b.id==='openAwak'){S.ask=true;return render()}
+  if(b.id==='genBilan'){return genererBilan(false)}
+  if(b.id==='regen'){return genererBilan(true)}
   if(b.id==='showKey'){S.showKey=true;S.keyMsg='';return render()}
   if(b.id==='copyKey'){navigator.clipboard.writeText(S.key).then(()=>toast('Clé copiée')).catch(()=>toast('Copie impossible'));return}
   if(b.id==='useKey'){
