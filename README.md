@@ -10,3 +10,8 @@ Les donnees sont stockees dans le localStorage du navigateur. Rien ne sort du te
 
 ## Deploiement Vercel
 Framework Preset : Other. Aucune commande de build. Racine du depot.
+
+## Bilan automatique
+
+La route `api/bilan.mjs` genere un bilan a partir des nuits stockees dans Supabase.
+Elle necessite la variable d environnement ANTHROPIC_API_KEY cote Vercel.
