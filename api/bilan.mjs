@@ -209,7 +209,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-5',
-        max_tokens: 2000,
+        max_tokens: 6000,
         system: SYSTEME,
         messages: [{ role: 'user', content: 'Voici mes donnees de sommeil :' + String.fromCharCode(10,10) + JSON.stringify(donnees, null, 1) }]
       })
@@ -224,10 +224,14 @@ export default async function handler(req, res) {
     const out = await ia.json();
     const texte = (out.content || []).filter(b => b.type === 'text').map(b => b.text).join(String.fromCharCode(10)).trim();
     if (!texte) {
-      // Diagnostic : on veut savoir pourquoi aucun texte n'est revenu.
       const blocs = (out.content || []).map(b => b.type).join(',');
       console.error('vide', out.stop_reason, blocs, JSON.stringify(out.usage || {}));
       return res.status(502).json({ erreur: 'Reponse vide.', motif: out.stop_reason || 'inconnu', blocs });
+    }
+    // Un bilan coupe en plein milieu ne sert a rien : mieux vaut le signaler que le stocker.
+    if (out.stop_reason === 'max_tokens') {
+      console.error('tronque', JSON.stringify(out.usage || {}), texte.length);
+      return res.status(502).json({ erreur: 'Le bilan a ete coupe avant la fin. Reessaie.' });
     }
 
     // 4. Mise en cache pour relecture sans nouvel appel.
