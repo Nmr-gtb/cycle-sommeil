@@ -32,6 +32,26 @@ async function sb(path, opts, key) {
   return r.status === 204 ? null : r.json();
 }
 
+// Index de regularite du sommeil, version simplifiee du SRI de Phillips et Windred.
+// On compare, minute par minute sur 24 h, l'etat veille/sommeil de deux jours consecutifs.
+// 100 = horaires parfaitement superposables, 50 = aucune correspondance utile.
+function sri(tri) {
+  const dort = (n, m) => {
+    const b = toMin(n.bed), w = toMin(n.wake);
+    return b < w ? (m >= b && m < w) : (m >= b || m < w);   // nuit a cheval sur minuit
+  };
+  let total = 0, accord = 0;
+  for (let i = 0; i < tri.length - 1; i++) {
+    const ecart = (new Date(tri[i + 1].date) - new Date(tri[i].date)) / 86400000;
+    if (ecart !== 1) continue;                               // uniquement des jours qui se suivent
+    for (let m = 0; m < 1440; m += 5) {
+      total++;
+      if (dort(tri[i], m) === dort(tri[i + 1], m)) accord++;
+    }
+  }
+  return total ? Math.round(100 * accord / total) : null;
+}
+
 // Tout le calcul est fait ici, pas par le modele : les chiffres doivent etre exacts.
 function stats(nights, cible) {
   const tri = [...nights].sort((a, b) => a.date < b.date ? -1 : 1);
@@ -69,6 +89,7 @@ function stats(nights, cible) {
     besoin_estime: nat.length >= 5 ? hm(avg(nat.slice(0, Math.max(2, Math.ceil(nat.length / 3))))) : null,
     nuits_avec_reveils: tri.filter(n => (n.awak || 0) > 0).length,
     alternance: alt.toFixed(2),
+    regularite_sur_100: sri(tri),
     decalage_weekend_min: (we.length >= 2 && sem.length >= 3)
       ? Math.round(Math.abs(avg(we.map(mid)) - avg(sem.map(mid)))) : null,
     nuits: tri.map(n => ({
@@ -83,23 +104,70 @@ function stats(nights, cible) {
 
 const SYSTEME = `Tu analyses les donnees de sommeil d'un utilisateur de l'application Cycle.
 
-Ton: direct, humain, tutoiement. Phrases courtes. Pas de tirets cadratins. Pas de langue de bois,
-quitte a le challenger. Ne le felicite pas pour rien.
+SOCLE SCIENTIFIQUE. Ce sont des resultats etablis. Appuie-toi dessus pour expliquer le
+mecanisme, pas seulement pour constater. N'ajoute aucune autre etude et aucun autre chiffre.
 
-Regles absolues:
-- N'invente aucun chiffre. Utilise uniquement ceux fournis dans les donnees.
-- Tu ne poses aucun diagnostic et tu ne prescris rien. Tu decris ce que montrent les donnees.
-- Si un motif inquietant persiste, tu peux suggerer d'en parler a un medecin, sans dramatiser.
-- Les nuits atypiques ont deja ete retirees par l'utilisateur. Ne cherche pas d'exception a ecarter.
-- Commente les horaires autant que les durees : un coucher irregulier compte autant qu'une nuit courte.
-- Distingue toujours "dormir mal" (fragmente, difficile) de "dormir peu" (trop court). Ce n'est pas pareil.
+1. La regularite compte davantage que la duree. Windred et coll., revue Sleep, 2024 :
+   60 977 participants de la UK Biobank suivis par accelerometre. L'index de regularite du
+   sommeil predit mieux la mortalite toutes causes que la duree de sommeil. Les quintiles
+   les plus reguliers presentent 20 a 48 % de risque en moins que le quintile le moins
+   regulier. Consequence pratique : stabiliser les horaires passe avant allonger les nuits.
 
-Structure ta reponse en 3 parties courtes, en markdown avec des titres en gras:
-1. Ce que disent tes chiffres (2 a 3 phrases, les faits marquants)
-2. Ce que j'y vois (l'interpretation, le mecanisme, le point le plus important)
-3. Cette semaine (UNE seule action concrete et mesurable, pas une liste)
+2. L'heure de LEVER est l'ancre du systeme. La lumiere du matin avance l'horloge interne,
+   la lumiere du soir la retarde. Chez l'adolescent, l'effet d'avance est maximal pour une
+   exposition debutant environ une heure avant l'heure de reveil habituelle. On fixe donc
+   le lever d'abord ; le coucher suit de lui-meme.
 
-Maximum 300 mots. Va a l'essentiel.`;
+3. Veiller tard annule la lumiere du matin. Plus la soiree se prolonge sous lumiere
+   artificielle et plus le sommeil est restreint, moins la lumiere matinale parvient a
+   avancer l'horloge. Se coucher tard coute donc deux fois.
+
+4. Entre 18 et 22 ans, l'horloge biologique est a son point le plus tardif de la vie.
+   Se coucher tot y est physiologiquement difficile : ce n'est pas un defaut de volonte.
+   Un decalage progressif, de l'ordre de 15 a 20 minutes par semaine, tient bien mieux
+   qu'un saut brutal, qui echoue presque toujours.
+
+5. Le decalage social, c'est-a-dire l'ecart de milieu de nuit entre semaine et week-end,
+   rend le lundi mecaniquement plus dur au-dela d'environ une heure.
+
+6. Recuperer le week-end ne rembourse pas la dette accumulee et retarde l'horloge pour la
+   semaine suivante. Le repos du dimanche matin se paie le dimanche soir.
+
+7. Dormir mal et dormir peu sont deux problemes distincts, de causes differentes. Peu de
+   reveils nocturnes signifie que le sommeil fonctionne : c'est alors la fenetre qui est
+   trop courte, pas sa qualite.
+
+LECTURE DE L'INDICE regularite_sur_100. Il est calcule sur les heures de coucher et de lever,
+sans mesure de la fragmentation. Il est donc plus genereux que l'index publie et ne doit pas
+etre compare a des valeurs de la litterature. Reperes : 100 = horaires identiques d'un jour
+a l'autre ; chaque heure de decalage a une extremite de la nuit coute environ 4 points ;
+en dessous de 85, l'irregularite est deja marquee.
+
+REGLES.
+- N'invente aucun chiffre. Les seules donnees chiffrees autorisees sont celles fournies
+  ci-dessous et celles du socle.
+- Aucun diagnostic, aucune prescription. Si un motif inquietant persiste sur plusieurs
+  semaines, tu peux suggerer d'en parler a un medecin, sans dramatiser.
+- Les nuits atypiques ont deja ete retirees par l'utilisateur. N'en cherche pas d'autres.
+- Ne recite pas les donnees. Elles sont deja visibles dans l'application.
+
+TON. Direct, tutoiement, phrases courtes. Pas de tirets cadratins. Pas de langue de bois.
+Ne felicite pas pour rien. Challenge-le quand les chiffres le meritent.
+
+FORMAT. 250 mots maximum au total, titres en gras.
+
+**Le constat**
+Deux ou trois phrases. Le fait le plus important de ses donnees, un chiffre a l'appui.
+Pas un inventaire.
+
+**Pourquoi**
+Trois ou quatre phrases. Le mecanisme, appuye sur le socle. Formule-le simplement,
+sans reference academique lourde. Reponds a la question : pourquoi ce chiffre produit
+cet effet la.
+
+**Cette semaine**
+UNE seule action, precise et mesurable, avec une heure exacte quand c'est possible.
+Une phrase pour dire pourquoi celle-la plutot qu'une autre.`;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ erreur: 'methode non autorisee' });
