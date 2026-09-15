@@ -147,26 +147,22 @@ svg.arc{width:100%;display:block;touch-action:none}
 .curve .yl{fill:var(--muted);font-size:9.5px;font-family:var(--f)}
 .curve .xl{fill:var(--muted);font-size:9.5px;font-family:var(--f);text-anchor:middle}
 .curve .xl.we{fill:var(--orange);font-weight:600}
+.curve .cl{font-size:10px;font-weight:600;font-family:var(--f)}
+.curve .cv{font-size:9px;font-family:var(--f);opacity:.75}
 .curve .lbed{fill:none;stroke:var(--blue);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
 .curve .lwake{fill:none;stroke:var(--green);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
 .curve .pb{fill:var(--card);stroke:var(--blue);stroke-width:2}
 .curve .pw{fill:var(--card);stroke:var(--green);stroke-width:2}
 .seg.per{display:grid;grid-template-columns:repeat(4,1fr);margin-bottom:10px}
 .seg.per button{padding:8px 0;font-size:13px}
-.legend{display:flex;gap:16px;justify-content:center;margin-top:10px;font-size:12px;color:var(--muted)}
-.legend i{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:-1px}
 .item.ex{opacity:.45}
 .item.ex .c{text-decoration:line-through}
 .exbtn{background:none;border:none;color:var(--muted);font-size:11.5px;cursor:pointer;padding:3px 7px;
   border-radius:8px;flex:none;white-space:nowrap}
 .exbtn.on{background:var(--fill2);color:var(--text);font-weight:500}
-.target{display:flex;align-items:center;gap:14px}
-.target .big{font-size:34px;font-weight:700;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums;color:var(--blue)}
 .trend{display:flex;align-items:baseline;gap:8px;margin-top:8px}
 .trend .v{font-size:22px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
-.dpick{position:relative;display:inline-flex;align-items:center;gap:6px;background:var(--fill);border:none;
-  border-radius:999px;padding:7px 13px;font-family:var(--f);font-size:12.5px;color:var(--text);cursor:pointer}
-.dpick input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
+
 
 /* insight */
 .ins{display:flex;gap:14px;align-items:flex-start}
@@ -251,7 +247,7 @@ const I={
   down:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7l6 6 4-4 6 6"/><path d="M20 15v-4h-4"/></svg>'
 };
 
-let S={nights:[],target:480,theme:'light',tab:'log',ready:false,ask:false,confirm:false,key:null,sync:'off',syncAt:0,showKey:false,keyMsg:'',touched:false,bilan:null,bilanAt:null,bilanEtat:'',bilanErr:'',periode:14,pDebut:'',pFin:''};
+let S={nights:[],target:480,theme:'light',tab:'log',ready:false,ask:false,confirm:false,key:null,sync:'off',syncAt:0,showKey:false,keyMsg:'',touched:false,bilan:null,bilanAt:null,bilanEtat:'',bilanErr:'',periode:14};
 let d=null;
 
 const pad=n=>String(n).padStart(2,'0');
@@ -275,12 +271,7 @@ const retenues=()=>sorted().filter(n=>!n.excluded);
 // Fenetre d'observation choisie par l'utilisateur.
 function fenetre(){
   const ns=retenues();
-  if(S.periode==='perso'){
-    if(!S.pDebut||!S.pFin)return ns;
-    const a=S.pDebut<S.pFin?S.pDebut:S.pFin, b=S.pDebut<S.pFin?S.pFin:S.pDebut;
-    return ns.filter(n=>n.date>=a&&n.date<=b);
-  }
-  return ns.slice(0,S.periode);
+  return S.periode==='tout' ? ns : ns.slice(0,S.periode);
 }
 const saved=()=>d&&S.nights.some(n=>n.date===d.date);
 const tint=(c,a)=>'style="background:color-mix(in srgb,'+c+' 14%,transparent);color:'+c+'"';
@@ -544,46 +535,66 @@ function buildCurve(ns){
     +g+goal+'<path d="'+area+'" fill="url(#ga2)"/><path class="line" d="'+d+'"/>'+dots+xl+'</svg>';
 }
 
-// Deux courbes sur une horloge verticale : coucher et lever.
-// L'axe part de 18h pour qu'une nuit ne soit jamais coupee en deux.
+// Coucher et lever sur un axe horaire. La bande entre les deux EST la nuit :
+// sa position montre quand tu dors, son epaisseur combien de temps.
 function buildHoraires(ns){
-  const W=320,H=190,L=38,R=8,T=12,B=26;
+  const W=320,H=210,L=44,R=52,T=14,B=26;
   if(ns.length<2)return '<div class="empty">Il faut au moins deux nuits pour tracer tes horaires.</div>';
   const beds=ns.map(n=>ax(n.bed)), wakes=ns.map(n=>ax(n.wake));
-  let lo=Math.min(...beds,...wakes)-30, hi=Math.max(...beds,...wakes)+30;
+  let lo=Math.min(...beds)-40, hi=Math.max(...wakes)+40;
   lo=Math.max(0,Math.floor(lo/60)*60); hi=Math.min(1080,Math.ceil(hi/60)*60);
-  if(hi-lo<180)hi=Math.min(1080,lo+180);
+  if(hi-lo<240)hi=Math.min(1080,lo+240);
+  const pas=(hi-lo)>420?120:60;                      // une graduation toutes les 1 ou 2 h
   const X=i=>L+(W-L-R)*(ns.length===1?.5:i/(ns.length-1));
   const Y=v=>T+(H-T-B)*((v-lo)/(hi-lo));
-  const spline=pts=>{
-    let d='M'+pts[0][0].toFixed(1)+' '+pts[0][1].toFixed(1);
-    for(let i=0;i<pts.length-1;i++){
-      const p0=pts[i-1]||pts[i],p1=pts[i],p2=pts[i+1],p3=pts[i+2]||pts[i+1];
-      d+=' C'+(p1[0]+(p2[0]-p0[0])/6).toFixed(1)+' '+(p1[1]+(p2[1]-p0[1])/6).toFixed(1)+','
-        +(p2[0]-(p3[0]-p1[0])/6).toFixed(1)+' '+(p2[1]-(p3[1]-p1[1])/6).toFixed(1)+','
-        +p2[0].toFixed(1)+' '+p2[1].toFixed(1);
+  const spline=p=>{
+    let d='M'+p[0][0].toFixed(1)+' '+p[0][1].toFixed(1);
+    for(let i=0;i<p.length-1;i++){
+      const a=p[i-1]||p[i],b=p[i],c=p[i+1],e=p[i+2]||p[i+1];
+      d+=' C'+(b[0]+(c[0]-a[0])/6).toFixed(1)+' '+(b[1]+(c[1]-a[1])/6).toFixed(1)+','
+        +(c[0]-(e[0]-b[0])/6).toFixed(1)+' '+(c[1]-(e[1]-b[1])/6).toFixed(1)+','
+        +c[0].toFixed(1)+' '+c[1].toFixed(1);
     }
     return d;
   };
   const pb=beds.map((v,i)=>[X(i),Y(v)]), pw=wakes.map((v,i)=>[X(i),Y(v)]);
+  const aire=spline(pb)+' L'+pw[pw.length-1][0].toFixed(1)+' '+pw[pw.length-1][1].toFixed(1)
+    +' '+spline([...pw].reverse()).slice(1)+' Z';
+
   let g='';
-  for(let v=lo;v<=hi;v+=60){
+  for(let v=lo;v<=hi;v+=pas){
     const y=Y(v);
     g+='<line class="grid-l" x1="'+L+'" y1="'+y.toFixed(1)+'" x2="'+(W-R)+'" y2="'+y.toFixed(1)+'"/>'
-     +'<text class="yl" x="'+(L-7)+'" y="'+(y+3.3).toFixed(1)+'" text-anchor="end">'+unax(v)+'</text>';
+     +'<text class="yl" x="'+(L-8)+'" y="'+(y+3.3).toFixed(1)+'" text-anchor="end">'+unax(v)+'</text>';
   }
-  const dots=pb.map((p,i)=>'<circle class="pb" cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="3.2"/>').join('')
-    +pw.map((p,i)=>'<circle class="pw" cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="3.2"/>').join('');
-  const step=ns.length>9?Math.ceil(ns.length/7):1;
+  // Moyennes, en pointilles, pour juger l'ecart d'un coup d'oeil.
+  const mb=avg(beds), mw=avg(wakes);
+  const moyennes=
+     '<line x1="'+L+'" y1="'+Y(mb).toFixed(1)+'" x2="'+(W-R)+'" y2="'+Y(mb).toFixed(1)+'" stroke="var(--blue)" stroke-width="1" stroke-dasharray="3 4" opacity=".45"/>'
+    +'<line x1="'+L+'" y1="'+Y(mw).toFixed(1)+'" x2="'+(W-R)+'" y2="'+Y(mw).toFixed(1)+'" stroke="var(--green)" stroke-width="1" stroke-dasharray="3 4" opacity=".45"/>';
+
+  const dots=pb.map(p=>'<circle class="pb" cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="3"/>').join('')
+    +pw.map(p=>'<circle class="pw" cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="3"/>').join('');
+
+  // Les noms sont ecrits au bout des courbes : plus besoin de chercher dans une legende.
+  const bout=W-R+6;
+  const noms=
+     '<text class="cl" x="'+bout+'" y="'+(pb[pb.length-1][1]-4).toFixed(1)+'" fill="var(--blue)">Coucher</text>'
+    +'<text class="cv" x="'+bout+'" y="'+(pb[pb.length-1][1]+8).toFixed(1)+'" fill="var(--blue)">'+unax(mb)+' moy.</text>'
+    +'<text class="cl" x="'+bout+'" y="'+(pw[pw.length-1][1]-4).toFixed(1)+'" fill="var(--green)">Lever</text>'
+    +'<text class="cv" x="'+bout+'" y="'+(pw[pw.length-1][1]+8).toFixed(1)+'" fill="var(--green)">'+unax(mw)+' moy.</text>';
+
+  const step=ns.length>8?Math.ceil(ns.length/6):1;
   const xl=ns.map((n,i)=>{
     if(i%step)return '';
     const j=new Date(n.date+'T12:00').getDay();
-    return '<text class="xl'+([0,6].includes(j)?' we':'')+'" x="'+X(i).toFixed(1)+'" y="'+(H-8)+'">'+DAY[j][0].toUpperCase()+'</text>';
+    return '<text class="xl'+([0,6].includes(j)?' we':'')+'" x="'+X(i).toFixed(1)+'" y="'+(H-8)+'">'+lab(n.date).slice(-2)+'</text>';
   }).join('');
-  return '<svg class="curve" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" style="height:190px">'
-    +g+'<path class="lbed" d="'+spline(pb)+'"/><path class="lwake" d="'+spline(pw)+'"/>'+dots+xl+'</svg>'
-    +'<div class="legend"><span><i style="background:var(--blue)"></i>Coucher</span>'
-    +'<span><i style="background:var(--green)"></i>Lever</span></div>';
+
+  return '<svg class="curve" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" style="height:210px">'
+    +g+'<path d="'+aire+'" fill="var(--blue)" opacity=".10"/>'+moyennes
+    +'<path class="lbed" d="'+spline(pb)+'"/><path class="lwake" d="'+spline(pw)+'"/>'
+    +dots+noms+xl+'</svg>';
 }
 
 /* ---------- écran 2 ---------- */
@@ -594,19 +605,13 @@ function vNights(){
   const nb=ns.length;
   const exclues=tous.filter(n=>n.excluded).length;
 
-  const libelle=S.periode==='perso'
-    ? (S.pDebut&&S.pFin ? 'du '+lab(S.pDebut<S.pFin?S.pDebut:S.pFin)+' au '+lab(S.pDebut<S.pFin?S.pFin:S.pDebut) : 'choisis deux dates')
-    : S.periode+' derniers jours';
+  const libelle=S.periode==='tout' ? 'depuis le début' : S.periode+' derniers jours';
 
   const selecteur=`
     <div class="seg per">
       ${[7,14,31].map(v=>'<button data-per="'+v+'" class="'+(S.periode===v?'on':'')+'">'+v+' j</button>').join('')}
-      <button data-per="perso" class="${S.periode==='perso'?'on':''}">Perso</button>
-    </div>
-    ${S.periode==='perso'?`<div style="display:flex;gap:8px;margin-bottom:12px">
-      <button class="dpick">${S.pDebut?lab(S.pDebut):'Début'}<input type="date" id="pd" value="${S.pDebut}" max="${today()}"></button>
-      <button class="dpick">${S.pFin?lab(S.pFin):'Fin'}<input type="date" id="pf" value="${S.pFin}" max="${today()}"></button>
-    </div>`:''}`;
+      <button data-per="tout" class="${S.periode==='tout'?'on':''}">Tout</button>
+    </div>`;
 
   if(!nb)return selecteur+'<div class="card"><div class="empty">Aucune nuit sur cette période.</div></div>';
 
@@ -616,11 +621,8 @@ function vNights(){
   const beds=ns.map(n=>ax(n.bed)), wakes=ns.map(n=>ax(n.wake));
   const chrono=ns.slice().reverse();
 
-  // Heure de coucher a viser pour atteindre l'objectif avec le lever habituel.
-  const cible=unax(Math.max(0,avg(wakes)-S.target));
-
   // Tendance : cette fenetre comparee a la precedente, meme longueur.
-  const ref=S.periode==='perso'?null:retenues().slice(S.periode,S.periode*2);
+  const ref=(S.periode==='tout')?null:retenues().slice(S.periode,S.periode*2);
   const delta=(ref&&ref.length>=Math.min(4,S.periode))?avg(ns.map(dur))-avg(ref.map(dur)):null;
 
   const rows=chrono.map(n=>{
@@ -649,13 +651,6 @@ function vNights(){
       <span class="hint">par rapport à la période précédente</span></div>`:''}
   </div>
 
-  <div class="card" style="margin-top:12px">
-    <div class="target">
-      <div><div class="hint" style="margin-bottom:4px">Pour tes ${hm(S.target)}, avec ton lever moyen de ${unax(avg(wakes))}</div>
-      <div class="big">Couche-toi à ${cible}</div></div>
-    </div>
-  </div>
-
   <div class="sec">Les chiffres</div>
   <div class="grid">
     <div class="stat"><div class="k">Dette de sommeil</div>
@@ -675,7 +670,7 @@ function vNights(){
 
   <div class="sec">Tes horaires</div>
   <div class="card" style="padding:18px 14px 12px">${buildHoraires(chrono)}</div>
-  <div class="note">Deux courbes plates, c'est un rythme régulier. Si la bleue descend, tu te couches de plus en plus tard.</div>
+  <div class="note">La bande bleue, c'est ta nuit : sa position dit quand tu dors, son épaisseur combien de temps. Plus les courbes sont plates, plus ton rythme est régulier. Les pointillés sont tes moyennes.</div>
 
   <div class="sec">Tes nuits sur l'horloge</div>
   <div class="card" style="padding:18px 16px 14px">
@@ -773,7 +768,7 @@ document.addEventListener('click',async e=>{
     d[f]=unax(Math.min(SPAN,Math.max(0,m)));return paint()}
   if(b.dataset.set){S.touched=true;d[b.dataset.set]=b.dataset.set==='awak'?Number(b.dataset.v):b.dataset.v;return render()}
   if(b.id==='openAwak'){S.ask=true;return render()}
-  if(b.dataset.per){S.periode=b.dataset.per==='perso'?'perso':Number(b.dataset.per);return render(1)}
+  if(b.dataset.per){S.periode=b.dataset.per==='tout'?'tout':Number(b.dataset.per);return render(1)}
   if(b.dataset.exc){
     const g=S.nights.find(n=>n.id===b.dataset.exc);
     if(g){g.excluded=!g.excluded;g.up=new Date().toISOString();save();push();
@@ -819,8 +814,6 @@ document.addEventListener('click',async e=>{
 document.addEventListener('input',e=>{
   if(e.target.id==='tg'){S.target=Number(e.target.value);document.getElementById('tgv').textContent=hm(S.target)+' par nuit'}
   if(e.target.id==='dpick'&&e.target.value){S.ask=false;S.touched=false;d=blank(e.target.value);render()}
-  if(e.target.id==='pd'&&e.target.value){S.pDebut=e.target.value;render()}
-  if(e.target.id==='pf'&&e.target.value){S.pFin=e.target.value;render()}
 });
 document.addEventListener('change',e=>{if(e.target.id==='tg'){save();push()}});
 load();
